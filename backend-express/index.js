@@ -5,10 +5,13 @@ const { createLogger, format, transports } = require('winston')
 const { combine, timestamp, label, printf, splat, json , cli} = format
 const crypto = require('crypto')
 
-const db = require('./db.js')
+
+const db = require('./db.js');
+
 
 const conn = db()
 const User = conn.model('User')
+const Token = conn.model('Token')
 
 require('dotenv').config()
 
@@ -56,8 +59,13 @@ app.post('/api/login', (req,res, next) => {
             const hmacTab = crypto.createHmac('sha256', process.env.SECRET).update(randomToken).digest('base64url')
 
             const token = `${randomToken}:${hmacTab}`
-    
-            return res.json({token})
+
+            //TODO: store the token in mongodb 
+            new Token({token: randomToken, username: username}).save().then(savedDoc => {
+                 res.json({token})
+            }).catch(() => {
+                res.status(500).json({"message": "couldn't save the token in the store"})
+            })
         })    
     })
 })
@@ -66,6 +74,87 @@ logger.info("Define /api/status endpoint")
 app.get("/api/status", (req,res,next) => {
     logger.info("status")
     res.json({message: "service running"})
+})
+
+// Add the username to req, by looking up the token into the tokenstore
+app.use((req,res,next) => {
+    const authorization = req.get('authorization')
+    logger.info('authorization header %s', authorization)
+    if (authorization == null) {
+        req.username = null
+        logger.info('no Authorization header')
+        return next()
+    }
+
+
+    if (!authorization.startsWith('Bearer ')) {
+        return res.status(401).json({message: "Only Bearer token authentication is supported"})
+    }
+
+    // TODO first check that the bearer token in the Authorization header is legitimate (verifying the HMAC tag)
+    const bearerToken = authorization.substring(authorization.indexOf(' ')+1)
+
+    // split the bearerToken into token : hmactag
+    const [token, hmacTag] = bearerToken.split(':')
+    logger.info('token: %s hmacTag: %s', token, hmacTag)
+
+    if (!token || !hmacTag) {
+        return res.status(401).json({message: "invalid credentials"})
+    }
+
+    const expectedHmacTag = crypto.createHmac('sha256', process.env.SECRET).update(token).digest('base64url')
+
+    if (hmacTag.length !== expectedHmacTag.length) {
+        return res.status(401).json({message: "invalid credentials"})
+    }
+
+    try {
+        if (!crypto.timingSafeEqual(Buffer.from(hmacTag), Buffer.from(expectedHmacTag))) {
+            return res.status(401).json({message: "Invalid credentials"})
+        }
+
+    } catch (err) {
+        return res.status(500).json({message: "Can't validate the bearer token"})
+    }
+
+    Token.findOne({token}, (err, result) => {
+        if (err) return res.status(500).json({message: "error communicating with the token store"})
+
+        if (result === null) { // can't find the token in the database
+            return res.status(401).json({message: "Invalid credentials"})
+        }
+
+        req.username = result.username
+        return next()
+    })
+
+})
+
+app.get('/api/userinfo', (req,res) => {
+    logger.info('userinfo endpoint username: %s', req.username)
+    if (!req.username) {
+        return res.json({loggedInStatus: false})
+    }
+
+    return res.json({loggedInStatus: true, username: req.username})
+})
+
+app.post('/api/increaseCounter', (req,res) => {
+    if (!req.username) {
+        return res.status(403).json({message: "You need a valid bearer token to use this endpoint"})
+    }
+
+    // TOOD find the user and increase
+
+    User.findOne({username: req.username}, function(err, user) {
+        if (err) return res.status(500).json({message: "Error trying to fetch user from database"})
+        if (!user) return res.status(500).json({message: "There is no corresponding user in database"})
+        user.counter += 1
+        user.save((err,doc) => {
+            if (err) return res.status(500).json({message: "Could not save the changes in the database"})
+            return res.json({counter: doc.counter})
+        })
+    })
 })
 
 app.use((req,res,next) => {

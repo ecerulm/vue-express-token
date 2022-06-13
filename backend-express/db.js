@@ -7,7 +7,8 @@ const bcrypt = require('bcrypt')
 
 const userSchema = new Schema({
     username: {type: String, required: true, index: { unique: true}}, 
-    password: {type: String, required: true}
+    password: {type: String, required: true},
+    counter: {type: Number, default: 0}
 })
 
 userSchema.pre('save', function(next) { 
@@ -34,6 +35,13 @@ userSchema.methods.comparePassword = function(candidatePassword, callback) {
     })
 }
 
+const tokenSchema = new Schema({
+    token: {type: String, required: true, index: {unique: true}},
+    username: {type: String, required: true}
+})
+
+
+
 const logger = createLogger({
     format: combine(
         timestamp(),
@@ -48,5 +56,6 @@ module.exports = function connectionFactory() {
     logger.info("Get new mongoose connection")
     const conn = mongoose.createConnection("mongodb://localhost:27017/test")
     conn.model('User', userSchema)
+    conn.model('Token', tokenSchema)
     return conn
 }
