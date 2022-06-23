@@ -30,18 +30,34 @@ const logger = createLogger({
 })
 
 const app = express()
-app.post('/api/reset', (req, res) => {
-    // TODO store password as bcrypt hash
-    User.collection.drop()
-    new User({username: 'aaa', password: 'bbb'}).save().then(savedDoc => logger.info('saved %s', savedDoc))
-    res.json({"message": "users created"})
-})
+
+
 
 app.use(bodyParser.json())
 
 
 app.use(cors(corsOptions))
 
+app.use((req,res,next) => {
+    // This has to be after the CORS middleware
+    // because the CORS preflight request is an OPTIONS and wont have X-Requested-With or Content-Type
+    // and you don't want to reject the preflight request because of that.
+    logger.info("Checking for X-Requested-With %s", req.get('X-Requested-With'));
+
+    if (req.get('X-Requested-With') == null) {
+        return res.status(401).json({message: "we require X-Requested-With header to make sure that the request triggered SOP policy / CORS"})
+    }
+
+    return next()
+})
+
+app.post('/api/reset', (req, res) => {
+    // This api endpoint is unprotected this is just for testing
+    // obviously you would never have an unprotected endpoint to reset the whole database
+    User.collection.drop()
+    new User({username: 'aaa', password: 'bbb'}).save().then(savedDoc => logger.info('saved %s', savedDoc))
+    res.json({"message": "users created"})
+})
 
 logger.info("Define /api/login endpoint")
 app.post('/api/login', (req,res, next) => {
@@ -58,6 +74,8 @@ app.post('/api/login', (req,res, next) => {
             return res.status(401).json({message: "Invalid credentials"})
         }
 
+        logger.info('We found the user in the database for %s', username);
+
         user.comparePassword(password, function(err, isMatch) {
             if (err) return res.status(401).json({message: "error when comparing hashed password"})
             if (!isMatch) {
@@ -66,7 +84,7 @@ app.post('/api/login', (req,res, next) => {
             const randomToken = crypto.randomBytes(16).toString('base64url')
             const hmacTab = crypto.createHmac('sha256', process.env.SECRET).update(randomToken).digest('base64url')
 
-            const token = `${randomToken}:${hmacTab}`
+            const token = `${randomToken}.${hmacTab}`
 
             //TODO: store the token in mongodb 
             new Token({token: randomToken, username: username}).save().then(savedDoc => {
@@ -83,6 +101,9 @@ app.get("/api/status", (req,res,next) => {
     logger.info("status")
     res.json({message: "service running"})
 })
+
+
+
 
 // Add the username to req, by looking up the token into the tokenstore
 app.use((req,res,next) => {
@@ -103,7 +124,7 @@ app.use((req,res,next) => {
     const bearerToken = authorization.substring(authorization.indexOf(' ')+1)
 
     // split the bearerToken into token : hmactag
-    const [token, hmacTag] = bearerToken.split(':')
+    const [token, hmacTag] = bearerToken.split('.')
     logger.info('token: %s hmacTag: %s', token, hmacTag)
 
     if (!token || !hmacTag) {
@@ -118,7 +139,8 @@ app.use((req,res,next) => {
 
     try {
         if (!crypto.timingSafeEqual(Buffer.from(hmacTag), Buffer.from(expectedHmacTag))) {
-            return res.status(401).json({message: "Invalid credentials"})
+            logger.info("The tag %s does not match the expected tag %s", hmacTag, expectedHmacTag )
+            return res.status(401).json({message: "Invalid credentials the tag does not match"})
         }
 
     } catch (err) {
@@ -146,6 +168,7 @@ app.get('/api/userinfo', (req,res) => {
 
     return res.json({loggedInStatus: true, username: req.username})
 })
+
 
 app.post('/api/increaseCounter', (req,res) => {
     if (!req.username) {
