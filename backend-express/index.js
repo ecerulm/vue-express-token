@@ -166,7 +166,16 @@ app.get('/api/userinfo', (req,res) => {
         return res.json({loggedInStatus: false})
     }
 
-    return res.json({loggedInStatus: true, username: req.username})
+    User.findOne({username: req.username}, function(err, user) {
+        if (err) return res.status(500).json({message: "Error trying to fetch user from database"})
+        if (!user) return res.status(500).json({message: "There is no corresponding user in database"})
+
+        return res.json({
+            loggedInStatus: true, 
+            username: req.username,
+            counter: user.counter,
+        })
+    })
 })
 
 

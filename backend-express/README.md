@@ -9,7 +9,10 @@
   * the client should store the returned token in localStorage/sessioStorage
 * /api/status
 * /api/userinfo
+  * accesible with and without `Authorization: Bearer xxxx` 
+  * tells the client if it's authenticated or not 
 * /api/increaseCounter
+  * 
 
 
 # Generate a secret and put it in .env 
@@ -56,10 +59,15 @@ curl -s -X POST -H 'Content-Type: application/json' -H 'Authorization: Bearer xx
 ```
 
 
+# Notes
+
+* `X-Requested-With` is required to prevent cross-origin requests 
+* 
+
 # TODO
 
 * CORS 
  * allow from origin localhost:3000 only
- 
+* Check X-Requested-With is present ()
 
 
