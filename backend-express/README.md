@@ -1,3 +1,15 @@
+# API endpoints
+
+* POST /api/reset
+  * Create the users in the MongoDB. 
+  * This wouldn't exist in a real app
+* POST /api/login
+  * get the username / password in the JSON body
+  * return the token in JSON payload
+  * the client should store the returned token in localStorage/sessioStorage
+* /api/status
+* /api/userinfo
+* /api/increaseCounter
 
 
 # Generate a secret and put it in .env 
@@ -46,5 +58,8 @@ curl -s -X POST -H 'Content-Type: application/json' -H 'Authorization: Bearer xx
 
 # TODO
 
+* CORS 
+ * allow from origin localhost:3000 only
+ 
 
 

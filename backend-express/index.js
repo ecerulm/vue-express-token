@@ -5,6 +5,11 @@ const { createLogger, format, transports } = require('winston')
 const { combine, timestamp, label, printf, splat, json , cli} = format
 const crypto = require('crypto')
 
+const cors = require('cors');
+const corsOptions = {
+    origin: "http://localhost:3000",
+}
+
 
 const db = require('./db.js');
 
@@ -33,6 +38,9 @@ app.post('/api/reset', (req, res) => {
 })
 
 app.use(bodyParser.json())
+
+
+app.use(cors(corsOptions))
 
 
 logger.info("Define /api/login endpoint")
@@ -161,6 +169,6 @@ app.use((req,res,next) => {
     res.status(404).send("Not found")
 })
 
-app.listen(6000, () => {
-    logger.info("Listening on port 6000")
+app.listen(4000, () => {
+    logger.info("Listening on port 4000")
 })
