@@ -51,13 +51,14 @@ app.use((req,res,next) => {
     return next()
 })
 
-app.post('/api/reset', (req, res) => {
-    // This api endpoint is unprotected this is just for testing
-    // obviously you would never have an unprotected endpoint to reset the whole database
+
+function resetDb() {
     User.collection.drop()
     new User({username: 'aaa', password: 'bbb'}).save().then(savedDoc => logger.info('saved %s', savedDoc))
-    res.json({"message": "users created"})
-})
+    Token.collection.drop()
+}
+resetDb()
+
 
 logger.info("Define /api/login endpoint")
 app.post('/api/login', (req,res, next) => {
@@ -82,9 +83,9 @@ app.post('/api/login', (req,res, next) => {
                 return res.status(401).json({message: "Invalid credentials"})
             }
             const randomToken = crypto.randomBytes(16).toString('base64url')
-            const hmacTab = crypto.createHmac('sha256', process.env.SECRET).update(randomToken).digest('base64url')
+            const hmacTag = crypto.createHmac('sha256', process.env.SECRET).update(randomToken).digest('base64url')
 
-            const token = `${randomToken}.${hmacTab}`
+            const token = `${randomToken}.${hmacTag}`
 
             //TODO: store the token in mongodb 
             new Token({token: randomToken, username: username}).save().then(savedDoc => {
