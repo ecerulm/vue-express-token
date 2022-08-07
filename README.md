@@ -34,9 +34,14 @@ fake tokens
 
 ### Bearer Authentication
 
-The rest of the API checks that there is `Authorization: Bearer XXX` header. 
+The rest of the API checks that there is `Authorization: Bearer XXX.YYY` header. 
 
-Then it takes the token out the `Authorization`  and checks 
+It takes the Bearer token and splits by the `.` since the token is structured as `${randomString}.${hmacTag}`. 
+
+Then check that the hmacTag is correct. 
+
+Then it looks up the randomString in MongoDB. MongoDB holds the mapping 
+between randomstring to `username`.
 
 
 ### CORS

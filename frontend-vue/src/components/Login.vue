@@ -1,11 +1,11 @@
 <script setup>
 
-import { login, loggedInStatus, updateLoggedInStatus, increaseCounter, counter } from '@/apiclient.js'
+import { login, loggedInStatus, updateLoggedInStatus, increaseCounter, counter } from '@/apiclient.js';
 
-import { ref } from 'vue'
+import { ref } from 'vue';
 
-const username = ref("")
-const password = ref("")
+const username = ref("");
+const password = ref("");
 
 updateLoggedInStatus()
 
